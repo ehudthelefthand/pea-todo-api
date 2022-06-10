@@ -5,7 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon server.js",
-    "migrate-deploy": "prisma migarte deploy",
+    "migrate-deploy": "prisma migrate deploy",
     "generate": "prisma generate",
     "prod": "pm2 restart server.js"
   },
