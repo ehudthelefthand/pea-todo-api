@@ -22,5 +22,10 @@ jobs:
           host: ${{ secrets.HOST }}
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.KEY }}
-          script: whoami
+          script: |
+            cd todo/pea-todo-api
+            git pull origin main
+            npx prisma migrate deploy
+            npx prisma generate
+            npm run prod
 
