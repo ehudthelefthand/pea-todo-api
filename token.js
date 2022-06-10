@@ -15,7 +15,7 @@ function accessToken(data) {
         ...data,
         type: TOKEN_TYPE.ACCESS
     }
-    return token(payload, '20s')
+    return token(payload, '1h')
 }
 
 function refreshToken(data) {
@@ -23,7 +23,7 @@ function refreshToken(data) {
         ...data,
         type: TOKEN_TYPE.REFRESH
     }
-    return token(payload, '40s')
+    return token(payload, '1h')
 }
 
 function verifyToken(token) {

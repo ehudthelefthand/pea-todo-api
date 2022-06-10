@@ -1,98 +1,109 @@
 const express = require('express')
-const { v4: uuid } = require('uuid')
+const { PrismaClient } = require('@prisma/client')
+const bcrypt = require('bcrypt')
+const { checkUser } = require('./middleware')
+const { refreshToken, accessToken, verifyToken, TOKEN_TYPE } = require('./token')
+const todoRouter = require('./routers/todo')
 
+const prisma = new PrismaClient()
 const app = express()
 
-// Product
-// - ID: UUID (String)
-// - Name: String
-// - Type: String
-// - Price: Number
-// - InStock?: Boolean
+const port = 4444
 
-let Products = [
-    {
-        id: uuid(),
-        name: 'ลูกข่าง',
-        type: 'Toy',
-        price: 20.25,
-        inStock: true
-    },
-    {
-        id: uuid(),
-        name: 'ไส้กรอก',
-        type: 'Food',
-        price: 24.00,
-        inStock: true
-    }
-]
+// Todo
+// - ID: UUID
+// - Name: String
+// - Completed: Boolean
 
 app.use(express.json())
 
-app.get('/products', (req, res) => {
-    res.json(Products)
-})
+// Todo
+// - create register api
+// - create login api
+// - add route protect
 
-app.get('/products/:id', (req, res) => {
-    const id = Number(req.params.id)
-    const founds = Products.filter((product) => {
-        return product.id === id
+// Encode -> แปลงรูป -> Decode
+// Encrypt -> แปลงรูป + key -> Decrypt
+// Hash -> แปลงรูป + key
+
+// ehud secret! $2b$10$/oPVecF6opjIaeKyunWxRu6g3pPs8oIdEhx5H.sls.Ur2J.Zc9QJm
+// ehud secret! $2b$10$gOCXXso37L4zv7TeS99jkO4UE5lA12CAlqkKao1FAU.TB/qRZpPKe
+
+app.post('/register', async (req, res) => {
+    const { username, password } = req.body
+    const passwordHashed = await bcrypt.hash(password, 10)
+    await prisma.user.create({
+        data: {
+            username,
+            password: passwordHashed
+        }
     })
-    if (founds.length === 0) {
-        res.sendStatus(404)
-    } else {
-        res.json(founds[0])
-    }
-})
-
-app.post('/products', (req, res) => {
-    const { name, type, price, inStock } = req.body
-    // const product = { 
-    //     name: name,
-    //     type: type,
-    //     price: price,
-    //     inStock: inStock
-    // }
-    const product = {
-        id: uuid(),
-        name,
-        type,
-        price,
-        inStock
-    }
-    Products = [...Products, product]
     res.sendStatus(201)
 })
 
-app.delete('/products/:id', (req, res) => {
-    const id = req.params.id
-    Products = Products.filter((product) => {
-        return product.id !== id
+app.post('/login', async (req, res) => {
+    const { username, password } = req.body
+    const found = await prisma.user.findFirst({
+        where: { username }
     })
-    res.sendStatus(204)
-})
-
-app.put('/products/:id', (req, res) => {
-    const id = req.params.id
-    const founds = Products.filter((product) => {
-        return product.id === id
-    })
-    if (founds.length === 0) {
-        res.sendStatus(404)
+    if (!found) {
+        res.sendStatus(401)
         return
     }
-    const { name, inStock } = req.body
-    const product = { ...founds[0], name, inStock }
-    const newProducts = Products.filter((product) => {
-        return product.id !== id
+    const valid = await bcrypt.compare(password, found.password)
+    if (!valid) {
+        res.sendStatus(401)
+        return
+    }
+
+    const _refreshToken = refreshToken()
+    await prisma.user.update({
+        data: { 
+            token: _refreshToken
+        },
+        where: {
+            id: found.id
+        }
     })
-    Products = [...newProducts, product ]
-    res.sendStatus(204)
+
+    res.json({ 
+        refreshToken: _refreshToken,
+        accessToken: accessToken()
+     })
 })
 
-app.listen(4444, () => {
-    console.log('server started')
+app.post('/refresh', async (req, res) => {
+    const { token } = req.body
+    try {
+        const data = verifyToken(token)
+        if (data.type !== TOKEN_TYPE.REFRESH) {
+            res.sendStatus(401)
+            return
+        }
+
+        const found = await prisma.user.findFirst({
+            where: {
+                token: token
+            }
+        })
+        if (!found) {
+            res.sendStatus(401)
+            return
+        }
+
+        res.json({
+            accessToken: accessToken()
+        })
+    } catch (err) {
+        console.error(err)
+        res.sendStatus(401)
+    }
 })
 
+app.use('/todos', checkUser, todoRouter(prisma))
+
+app.listen(port, () => {
+    console.log(`server started at http://localhost:${port}`)
+})
 
 
