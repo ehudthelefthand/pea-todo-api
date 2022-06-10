@@ -1,7 +1,6 @@
 const jwt = require('jsonwebtoken')
 const { PrismaClient } = require('@prisma/client')
-
-const secretKey = 'shhhh!'
+const { verifyToken, TOKEN_TYPE } = require('./token')
 
 const prisma = new PrismaClient()
 
@@ -19,7 +18,12 @@ async function checkUser(req, res, next) {
             return
         }
         
-        const data = jwt.verify(token, secretKey)
+        const data = verifyToken(token)
+        if (data.type !== TOKEN_TYPE.ACCESS) {
+            res.sendStatus(401)
+            return
+        }
+
         const user = await prisma.user.findFirst({
             where: { 
                 id: data.id 
@@ -41,6 +45,5 @@ async function checkUser(req, res, next) {
 }
 
 module.exports = {
-    checkUser: checkUser,
-    secretKey
+    checkUser: checkUser
 }

@@ -3,7 +3,8 @@ const { PrismaClient } = require('@prisma/client')
 const { validate, isString, minLength, isBool } = require('dvali')
 const bcrypt = require('bcrypt')
 const jwt = require('jsonwebtoken')
-const { checkUser, secretKey } = require('./middleware')
+const { checkUser } = require('./middleware')
+const { refreshToken, accessToken, verifyToken, TOKEN_TYPE } = require('./token')
 
 const prisma = new PrismaClient()
 const app = express()
@@ -57,13 +58,49 @@ app.post('/login', async (req, res) => {
         res.sendStatus(401)
         return
     }
-    const token = jwt.sign({
-        id: found.id
-    }, secretKey, {
-        expiresIn: '10s'
+
+    const _refreshToken = refreshToken()
+    await prisma.user.update({
+        data: { 
+            token: _refreshToken
+        },
+        where: {
+            id: found.id
+        }
     })
 
-    res.json({ token })
+    res.json({ 
+        refreshToken: _refreshToken,
+        accessToken: accessToken()
+     })
+})
+
+app.post('/refresh', (req, res) => {
+    const { token } = req.body
+    try {
+        const data = verifyToken(token)
+        if (data.type !== TOKEN_TYPE.REFRESH) {
+            res.sendStatus(401)
+            return
+        }
+
+        const found = await prisma.user.findFirst({
+            where: {
+                token: token
+            }
+        })
+        if (!found) {
+            res.sendStatus(401)
+            return
+        }
+
+        res.json({
+            accessToken: accessToken()
+        })
+    } catch (err) {
+        console.error(err)
+        res.sendStatus(401)
+    }
 })
 
 app.get('/todos', checkUser, async (req, res) => {
