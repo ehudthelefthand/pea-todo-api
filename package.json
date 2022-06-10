@@ -5,7 +5,9 @@
   "main": "index.js",
   "scripts": {
     "start": "nodemon server.js",
-    "prod": "pm2 start server.js"
+    "migrate-deploy": "prisma migarte deploy",
+    "generate": "prisma generate",
+    "prod": "pm2 restart server.js"
   },
   "keywords": [],
   "author": "",
