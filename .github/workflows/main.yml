@@ -24,8 +24,6 @@ jobs:
           script: |
             cd todo/pea-todo-api
             git pull origin main
-            source ~/.bashrc
-            nvm use 16
             npm install
             npm run migrate-deploy
             npm run generate
