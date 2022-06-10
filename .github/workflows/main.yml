@@ -25,7 +25,8 @@ jobs:
           script: |
             cd todo/pea-todo-api
             git pull origin main
-            npx prisma migrate deploy
-            npx prisma generate
+            npm install
+            npm run migrate-deploy
+            npm run generate
             npm run prod
 
